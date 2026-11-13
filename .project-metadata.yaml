@@ -1,0 +1,69 @@
+name: Llama 3.1 70B Instruct
+description: Chatbot using the Meta Llama 3.1 70B model on Amazon Bedrock.
+author: Cloudera Education
+specification_version: 1.0
+prototype_version: 1.0
+
+environment_variables:
+    cpu:
+      default: 2
+      description: Number of CPUs
+
+    memory:
+      default: 16
+      description: Memory in GB
+
+    gpu:
+      default: 0
+      description: Number of GPUs
+
+    AWS_ACCESS_KEY_ID:
+      default: ""
+      description: AWS access key ID for the Bedrock lab user
+      required: true
+      tooltip: Provided by your instructor
+
+    AWS_SECRET_ACCESS_KEY:
+      default: ""
+      description: AWS secret access key for the Bedrock lab user
+      required: true
+      tooltip: Provided by your instructor
+
+    AWS_REGION:
+      default: "us-east-1"
+      description: AWS region where Llama 3.1 70B is enabled
+      required: true
+      tooltip: Use us-east-1 for this lab
+
+    BEDROCK_MODEL_ID:
+      default: "us.meta.llama3-1-70b-instruct-v1:0"
+      description: Bedrock model ID
+      required: false
+      tooltip: Leave the default to use Llama 3.1 70B
+
+runtimes:
+  - editor: PBJ Workbench
+    kernel: Python 3.9
+    edition: Standard
+
+tasks:
+  - type: run_session
+    name: Install Dependencies
+    script: .cml_dependencies_script_001.py
+    kernel: python3
+    cpu: 2
+    memory: 16
+    gpu: 0
+
+  - type: start_application
+    name: Application to serve UI
+    short_summary: Create an application to serve the UI
+    subdomain: cml-space
+    script: .cml_space_launcher_001.py
+    cpu: 2
+    memory: 16
+    gpu: 0
+    environment_variables:
+      TASK_TYPE: START_APPLICATION
+      CDSW_HF_SPACE: true
+      GRADIO_SERVER_PORT: 8100
