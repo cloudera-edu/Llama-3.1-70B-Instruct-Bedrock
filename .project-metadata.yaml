@@ -20,19 +20,19 @@ environment_variables:
     AWS_ACCESS_KEY_ID:
       default: ""
       description: AWS access key ID for the Bedrock lab user
-      required: true
+      required: false
       tooltip: Provided by your instructor
 
     AWS_SECRET_ACCESS_KEY:
       default: ""
       description: AWS secret access key for the Bedrock lab user
-      required: true
+      required: false
       tooltip: Provided by your instructor
 
     AWS_REGION:
       default: "us-east-1"
       description: AWS region where Llama 3.1 70B is enabled
-      required: true
+      required: false
       tooltip: Use us-east-1 for this lab
 
     BEDROCK_MODEL_ID:
