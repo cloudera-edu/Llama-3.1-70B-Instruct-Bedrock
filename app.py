@@ -2,6 +2,7 @@ import os
 
 import boto3
 import gradio as gr
+from botocore.exceptions import BotoCoreError, ClientError
 
 # ---------------------------------------------------------------------------
 # Amazon Bedrock configuration (set as CML project / application env vars)
@@ -14,16 +15,21 @@ MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "").strip() or "us.meta.llama3-1-7
 REGION = os.environ.get("AWS_REGION", "").strip() or "us-east-1"
 MODEL_NAME = "Llama 3.1 70B"
 
-has_api_key = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK", "").strip())
-has_iam_keys = bool(os.environ.get("AWS_ACCESS_KEY_ID", "").strip()) and bool(
-    os.environ.get("AWS_SECRET_ACCESS_KEY", "").strip()
-)
-if not (has_api_key or has_iam_keys):
-    raise RuntimeError(
-        "No AWS credentials found. Set AWS_BEARER_TOKEN_BEDROCK (Bedrock API key), "
-        "or AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, under Project Settings > "
-        "Advanced > Environment Variables, then restart."
+
+def has_credentials():
+    """True if a Bedrock API key or an IAM access key pair is set."""
+    if os.environ.get("AWS_BEARER_TOKEN_BEDROCK", "").strip():
+        return True
+    return bool(os.environ.get("AWS_ACCESS_KEY_ID", "").strip()) and bool(
+        os.environ.get("AWS_SECRET_ACCESS_KEY", "").strip()
     )
+
+
+MISSING_CREDS_MSG = (
+    "⚠️ No AWS credentials found. Add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY "
+    "(or AWS_BEARER_TOKEN_BEDROCK) under Project Settings > Advanced > "
+    "Environment Variables, then restart this application."
+)
 
 client = boto3.client("bedrock-runtime", region_name=REGION)
 
@@ -63,22 +69,31 @@ def generate(
     if temperature < 1e-2:
         temperature = 1e-2
 
-    response = client.converse_stream(
-        modelId=MODEL_ID,
-        messages=format_prompt(prompt, history),
-        inferenceConfig={
-            "temperature": temperature,
-            "topP": float(top_p),
-            "maxTokens": int(max_new_tokens),
-        },
-    )
+    if not has_credentials():
+        yield MISSING_CREDS_MSG
+        return
 
-    output = ""
-    for event in response["stream"]:
-        delta = event.get("contentBlockDelta", {}).get("delta", {})
-        if "text" in delta:
-            output += delta["text"]
-            yield output
+    try:
+        response = client.converse_stream(
+            modelId=MODEL_ID,
+            messages=format_prompt(prompt, history),
+            inferenceConfig={
+                "temperature": temperature,
+                "topP": float(top_p),
+                "maxTokens": int(max_new_tokens),
+            },
+        )
+
+        output = ""
+        for event in response["stream"]:
+            delta = event.get("contentBlockDelta", {}).get("delta", {})
+            if "text" in delta:
+                output += delta["text"]
+                yield output
+    except (ClientError, BotoCoreError) as e:
+        print(f"Bedrock error: {e}", flush=True)  # full detail in Application Logs
+        yield f"⚠️ Amazon Bedrock returned an error:\n\n{e}"
+        return
 
     return output
 
